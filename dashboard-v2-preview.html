@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard V2 - PPanel UI 重构预览</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            min-height: 100vh;
+        }
+
+        /* 玻璃态卡片 */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6, #10b981);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .glass-card:hover {
+            border-color: rgba(99, 102, 241, 0.3);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(99, 102, 241, 0.1);
+        }
+
+        .glass-card:hover::before {
+            opacity: 1;
+        }
+
+        /* 流量环形图 */
+        .traffic-ring {
+            position: relative;
+            width: 180px;
+            height: 180px;
+        }
+
+        .traffic-ring svg {
+            transform: rotate(-90deg);
+            filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.5));
+        }
+
+        .ring-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .ring-percentage {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* 动画 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .animate-fadeIn {
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        /* Tab 样式 */
+        .tab {
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #94a3b8;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        /* 按钮 */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        }
+
+        /* 状态徽章 */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.375rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-active {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .badge-dot {
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 999px;
+            background: currentColor;
+        }
+
+        /* 隐藏滚动条但保持功能 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            primary: '#6366f1',
+                            secondary: '#8b5cf6',
+                            accent: '#10b981',
+                        }
+                    }
+                }
+            }
+        }
+
+        // Tab 切换功能
+        function switchTab(cardId, tabName) {
+            const card = document.getElementById(cardId);
+            const tabs = card.querySelectorAll('.tab');
+            const contents = card.querySelectorAll('.tab-content');
+
+            tabs.forEach(tab => tab.classList.remove('active'));
+            contents.forEach(content => content.classList.add('hidden'));
+
+            card.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            card.querySelector(`[data-content="${tabName}"]`).classList.remove('hidden');
+        }
+    </script>
+</head>
+<body class="bg-[#0a0a0a] text-white">
+    <!-- 背景装饰 -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <!-- 渐变网格 -->
+        <div class="absolute inset-0 opacity-30"
+            style="background: radial-gradient(at 40% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 50%), radial-gradient(at 80% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%);">
+        </div>
+
+        <!-- 网格背景 -->
+        <div class="absolute inset-0 opacity-20"
+            style="background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px); background-size: 50px 50px;">
+        </div>
+    </div>
+
+    <!-- 主要内容 -->
+    <div class="relative z-10 max-w-7xl mx-auto px-4 py-8 space-y-8">
+        <!-- 页面头部 -->
+        <div class="flex items-center justify-between flex-wrap gap-4">
+            <div>
+                <h1 class="text-4xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-emerald-400 bg-clip-text text-transparent">
+                    Dashboard V2
+                </h1>
+                <p class="text-slate-400 mt-2">欢迎回来，demo@ppanel.dev</p>
+            </div>
+
+            <div class="flex gap-3">
+                <button class="btn">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                </button>
+                <button class="btn btn-primary">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    购买订阅
+                </button>
+            </div>
+        </div>
+
+        <!-- 统计卡片 -->
+        <section>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- 活跃订阅 -->
+                <div class="glass-card p-6 animate-fadeIn" style="animation-delay: 0.1s">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center">
+                                <svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="text-sm text-slate-400 mb-1">活跃订阅</p>
+                                <p class="text-2xl font-bold">3</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1 text-sm font-medium text-emerald-400">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                            </svg>
+                            +12%
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 今日流量 -->
+                <div class="glass-card p-6 animate-fadeIn" style="animation-delay: 0.2s">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                                <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="text-sm text-slate-400 mb-1">今日流量</p>
+                                <p class="text-2xl font-bold">12.5 GB</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1 text-sm font-medium text-emerald-400">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                            </svg>
+                            +8%
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 剩余天数 -->
+                <div class="glass-card p-6 animate-fadeIn" style="animation-delay: 0.3s">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                                <svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="text-sm text-slate-400 mb-1">剩余天数</p>
+                                <p class="text-2xl font-bold">28</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 钱包余额 -->
+                <div class="glass-card p-6 animate-fadeIn" style="animation-delay: 0.4s">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center">
+                                <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="text-sm text-slate-400 mb-1">钱包余额</p>
+                                <p class="text-2xl font-bold">¥128.00</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 订阅列表 -->
+        <section class="animate-fadeIn" style="animation-delay: 0.5s">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold flex items-center gap-3">
+                    <div class="w-1 h-8 rounded-full bg-gradient-to-b from-indigo-500 to-purple-500"></div>
+                    我的订阅
+                </h2>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- 订阅卡片 1 -->
+                <div class="glass-card p-8" id="subscription-1">
+                    <!-- 顶部渐变条 -->
+                    <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500"></div>
+
+                    <!-- 头部 -->
+                    <div class="flex items-start justify-between mb-6 pb-6 border-b border-white/10">
+                        <div>
+                            <h3 class="text-2xl font-bold mb-1">旗舰版套餐</h3>
+                            <p class="text-sm text-slate-400">订阅ID: #10086</p>
+                        </div>
+                        <div class="badge badge-active">
+                            <span class="badge-dot animate-pulse"></span>
+                            活跃
+                        </div>
+                    </div>
+
+                    <!-- 流量环形图 -->
+                    <div class="flex justify-center mb-6">
+                        <div class="traffic-ring">
+                            <svg width="180" height="180" viewBox="0 0 200 200">
+                                <defs>
+                                    <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" style="stop-color:#6366f1" />
+                                        <stop offset="50%" style="stop-color:#8b5cf6" />
+                                        <stop offset="100%" style="stop-color:#10b981" />
+                                    </linearGradient>
+                                </defs>
+                                <circle cx="100" cy="100" r="90" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="12"/>
+                                <circle cx="100" cy="100" r="90" fill="none" stroke="url(#gradient1)" stroke-width="12"
+                                    stroke-linecap="round" stroke-dasharray="565.48" stroke-dashoffset="226.19"/>
+                            </svg>
+                            <div class="ring-center">
+                                <div class="ring-percentage">60%</div>
+                                <div class="text-sm text-slate-400 mt-1">已使用</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 流量详情 -->
+                    <div class="grid grid-cols-3 gap-4 mb-6">
+                        <div class="text-center">
+                            <p class="text-2xl text-blue-400 mb-2">↑</p>
+                            <p class="text-xs text-slate-400 mb-1">上传</p>
+                            <p class="text-sm font-semibold">40 GB</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-2xl text-purple-400 mb-2">↓</p>
+                            <p class="text-xs text-slate-400 mb-1">下载</p>
+                            <p class="text-sm font-semibold">80 GB</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-2xl text-emerald-400 mb-2">⚡</p>
+                            <p class="text-xs text-slate-400 mb-1">总计</p>
+                            <p class="text-sm font-semibold">120 GB</p>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-white/10 pt-6">
+                        <!-- 时间信息 -->
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            <div class="flex items-center gap-3 p-3 rounded-lg bg-white/5">
+                                <span class="text-xl">🔄</span>
+                                <div>
+                                    <p class="text-xs text-slate-400">流量重置</p>
+                                    <p class="text-sm font-medium">2025-11-22</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 p-3 rounded-lg bg-white/5">
+                                <span class="text-xl">📅</span>
+                                <div>
+                                    <p class="text-xs text-slate-400">到期时间</p>
+                                    <p class="text-sm font-medium">2026-01-06</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab 切换 -->
+                        <div class="flex gap-2 mb-4 p-1 bg-white/5 rounded-xl">
+                            <div class="tab active flex-1" data-tab="general" onclick="switchTab('subscription-1', 'general')">通用订阅</div>
+                            <div class="tab flex-1" data-tab="apps" onclick="switchTab('subscription-1', 'apps')">应用导入</div>
+                            <div class="tab flex-1" data-tab="qrcode" onclick="switchTab('subscription-1', 'qrcode')">二维码</div>
+                        </div>
+
+                        <!-- Tab 内容 -->
+                        <div class="tab-content mb-6" data-content="general">
+                            <div class="space-y-3">
+                                <div class="flex items-center gap-3 p-3 rounded-lg bg-white/5">
+                                    <span class="px-2 py-1 rounded bg-indigo-500/10 border border-indigo-500/20 text-xs font-mono text-indigo-400">Clash</span>
+                                    <span class="flex-1 text-sm text-slate-400 truncate">https://example.com/...</span>
+                                    <button class="btn p-2">📋</button>
+                                </div>
+                                <div class="flex items-center gap-3 p-3 rounded-lg bg-white/5">
+                                    <span class="px-2 py-1 rounded bg-indigo-500/10 border border-indigo-500/20 text-xs font-mono text-indigo-400">V2Ray</span>
+                                    <span class="flex-1 text-sm text-slate-400 truncate">https://example.com/...</span>
+                                    <button class="btn p-2">📋</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-content hidden" data-content="apps">
+                            <div class="grid grid-cols-2 gap-3">
+                                <button class="btn justify-start">💻 Windows</button>
+                                <button class="btn justify-start">🍎 macOS</button>
+                                <button class="btn justify-start">📱 iOS</button>
+                                <button class="btn justify-start">🤖 Android</button>
+                            </div>
+                        </div>
+
+                        <div class="tab-content hidden text-center py-8" data-content="qrcode">
+                            <div class="inline-block p-4 bg-white rounded-xl mb-4">
+                                <div class="w-40 h-40 bg-slate-200"></div>
+                            </div>
+                            <p class="text-sm text-slate-400">使用客户端扫描二维码导入</p>
+                        </div>
+
+                        <!-- 操作按钮 -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <button class="btn">🔄 重置 Token</button>
+                            <button class="btn">⚡ 重置流量</button>
+                            <button class="btn" style="background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.2); color: #10b981;">💚 续费</button>
+                            <button class="btn" style="background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.2); color: #ef4444;">❌ 取消订阅</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 订阅卡片 2 -->
+                <div class="glass-card p-8" id="subscription-2">
+                    <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500"></div>
+
+                    <div class="flex items-start justify-between mb-6 pb-6 border-b border-white/10">
+                        <div>
+                            <h3 class="text-2xl font-bold mb-1">标准版套餐</h3>
+                            <p class="text-sm text-slate-400">订阅ID: #10087</p>
+                        </div>
+                        <div class="badge badge-active">
+                            <span class="badge-dot animate-pulse"></span>
+                            活跃
+                        </div>
+                    </div>
+
+                    <div class="flex justify-center mb-6">
+                        <div class="traffic-ring">
+                            <svg width="180" height="180" viewBox="0 0 200 200">
+                                <defs>
+                                    <linearGradient id="gradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" style="stop-color:#f59e0b" />
+                                        <stop offset="100%" style="stop-color:#ef4444" />
+                                    </linearGradient>
+                                </defs>
+                                <circle cx="100" cy="100" r="90" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="12"/>
+                                <circle cx="100" cy="100" r="90" fill="none" stroke="url(#gradient2)" stroke-width="12"
+                                    stroke-linecap="round" stroke-dasharray="565.48" stroke-dashoffset="113.10"/>
+                            </svg>
+                            <div class="ring-center">
+                                <div class="ring-percentage" style="background: linear-gradient(135deg, #f59e0b, #ef4444); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">80%</div>
+                                <div class="text-sm text-slate-400 mt-1">已使用</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-4 mb-6">
+                        <div class="text-center">
+                            <p class="text-2xl text-blue-400 mb-2">↑</p>
+                            <p class="text-xs text-slate-400 mb-1">上传</p>
+                            <p class="text-sm font-semibold">30 GB</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-2xl text-purple-400 mb-2">↓</p>
+                            <p class="text-xs text-slate-400 mb-1">下载</p>
+                            <p class="text-sm font-semibold">50 GB</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-2xl text-orange-400 mb-2">⚡</p>
+                            <p class="text-xs text-slate-400 mb-1">总计</p>
+                            <p class="text-sm font-semibold">80 GB</p>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-white/10 pt-6">
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            <div class="flex items-center gap-3 p-3 rounded-lg bg-white/5">
+                                <span class="text-xl">🔄</span>
+                                <div>
+                                    <p class="text-xs text-slate-400">流量重置</p>
+                                    <p class="text-sm font-medium">2025-11-15</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 p-3 rounded-lg bg-white/5">
+                                <span class="text-xl">📅</span>
+                                <div>
+                                    <p class="text-xs text-slate-400">到期时间</p>
+                                    <p class="text-sm font-medium">2025-12-31</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2 mb-4 p-1 bg-white/5 rounded-xl">
+                            <div class="tab active flex-1" data-tab="general" onclick="switchTab('subscription-2', 'general')">通用订阅</div>
+                            <div class="tab flex-1" data-tab="apps" onclick="switchTab('subscription-2', 'apps')">应用导入</div>
+                            <div class="tab flex-1" data-tab="qrcode" onclick="switchTab('subscription-2', 'qrcode')">二维码</div>
+                        </div>
+
+                        <div class="tab-content mb-6" data-content="general">
+                            <div class="space-y-3">
+                                <div class="flex items-center gap-3 p-3 rounded-lg bg-white/5">
+                                    <span class="px-2 py-1 rounded bg-indigo-500/10 border border-indigo-500/20 text-xs font-mono text-indigo-400">Clash</span>
+                                    <span class="flex-1 text-sm text-slate-400 truncate">https://example.com/...</span>
+                                    <button class="btn p-2">📋</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-content hidden" data-content="apps">
+                            <div class="grid grid-cols-2 gap-3">
+                                <button class="btn justify-start">💻 Windows</button>
+                                <button class="btn justify-start">🍎 macOS</button>
+                                <button class="btn justify-start">📱 iOS</button>
+                                <button class="btn justify-start">🤖 Android</button>
+                            </div>
+                        </div>
+
+                        <div class="tab-content hidden text-center py-8" data-content="qrcode">
+                            <div class="inline-block p-4 bg-white rounded-xl mb-4">
+                                <div class="w-40 h-40 bg-slate-200"></div>
+                            </div>
+                            <p class="text-sm text-slate-400">使用客户端扫描二维码导入</p>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <button class="btn">🔄 重置 Token</button>
+                            <button class="btn">⚡ 重置流量</button>
+                            <button class="btn" style="background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.2); color: #10b981;">💚 续费</button>
+                            <button class="btn" style="background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.2); color: #ef4444;">❌ 取消订阅</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 快速操作 -->
+        <section class="animate-fadeIn" style="animation-delay: 0.6s">
+            <h2 class="text-2xl font-bold flex items-center gap-3 mb-6">
+                <div class="w-1 h-8 rounded-full bg-gradient-to-b from-purple-500 to-emerald-500"></div>
+                快速操作
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="glass-card p-6 cursor-pointer group">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center transition-transform group-hover:scale-110">
+                            <svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold">下载客户端</h3>
+                            <p class="text-sm text-slate-400">支持多平台</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card p-6 cursor-pointer group">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center transition-transform group-hover:scale-110">
+                            <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold">使用教程</h3>
+                            <p class="text-sm text-slate-400">快速入门指南</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card p-6 cursor-pointer group">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center transition-transform group-hover:scale-110">
+                            <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold">联系客服</h3>
+                            <p class="text-sm text-slate-400">提交工单</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 提示信息 -->
+        <div class="glass-card p-6 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-emerald-500/10 border-indigo-500/20 animate-fadeIn" style="animation-delay: 0.7s">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="font-semibold mb-1">💡 这是新版 Dashboard V2 预览</h3>
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        采用现代化玻璃态设计、流畅动画、数据可视化。这是一个完全可交互的预览版本，
+                        展示了重构后的所有核心功能。保存此文件到本地即可随时查看效果！
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center text-slate-500 text-sm py-8">
+        PPanel Dashboard V2 - 现代科技风格设计 | Created by Claude Code 🤖
+    </div>
+</body>
+</html>
