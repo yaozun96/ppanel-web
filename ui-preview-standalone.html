@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPanel UI 重构预览 - 独立版本</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* 背景装饰 */
+        .background {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .gradient-mesh {
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(at 40% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+                radial-gradient(at 80% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%);
+            opacity: 0.3;
+        }
+
+        .grid-pattern {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            opacity: 0.2;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 4rem 1rem;
+        }
+
+        /* 页面标题 */
+        .page-title {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .page-title h1 {
+            font-size: 3.75rem;
+            font-weight: 900;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6, #10b981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-title p {
+            font-size: 1.25rem;
+            color: #94a3b8;
+        }
+
+        /* Section */
+        .section {
+            margin-bottom: 4rem;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 2rem;
+            background: linear-gradient(180deg, #6366f1, #8b5cf6);
+            border-radius: 999px;
+        }
+
+        /* 玻璃态卡片 */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6, #10b981);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .glass-card:hover {
+            border-color: rgba(99, 102, 241, 0.3);
+            transform: translateY(-4px);
+            box-shadow:
+                0 20px 40px rgba(0, 0, 0, 0.3),
+                0 0 0 1px rgba(99, 102, 241, 0.1);
+        }
+
+        .glass-card:hover::before {
+            opacity: 1;
+        }
+
+        /* Grid */
+        .grid {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .grid-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+        .grid-3 { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+        .grid-4 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+
+        /* 统计卡片 */
+        .stat-card {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+        }
+
+        .stat-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .stat-icon {
+            width: 3rem;
+            height: 3rem;
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: transform 0.2s ease;
+        }
+
+        .stat-card:hover .stat-icon {
+            transform: scale(1.05);
+        }
+
+        .icon-primary { background: rgba(99, 102, 241, 0.1); color: #6366f1; }
+        .icon-accent { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+        .icon-warning { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+        .icon-danger { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+
+        .stat-details {
+            flex: 1;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: #94a3b8;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .stat-trend {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .trend-up { color: #10b981; }
+        .trend-down { color: #ef4444; }
+
+        /* 流量环形图 */
+        .traffic-ring-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .traffic-ring {
+            position: relative;
+            width: 200px;
+            height: 200px;
+        }
+
+        .traffic-ring svg {
+            transform: rotate(-90deg);
+            filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.5));
+        }
+
+        .ring-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .ring-percentage {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .ring-label {
+            font-size: 0.875rem;
+            color: #94a3b8;
+            margin-top: 0.25rem;
+        }
+
+        .ring-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        /* 订阅卡片 */
+        .subscription-card {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .card-subtitle {
+            font-size: 0.875rem;
+            color: #94a3b8;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.375rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .status-dot {
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 999px;
+            background: #10b981;
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .traffic-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .detail-item {
+            text-align: center;
+        }
+
+        .detail-icon {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .detail-label {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-bottom: 0.25rem;
+        }
+
+        .detail-value {
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        /* 时间信息 */
+        .time-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .time-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.5rem;
+        }
+
+        .time-icon {
+            color: #94a3b8;
+        }
+
+        .time-label {
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+
+        .time-value {
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        /* Tab */
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin: 1.5rem 0;
+            padding: 0.25rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.75rem;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #94a3b8;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        /* 按钮 */
+        .button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+        }
+
+        .button:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        /* 特性卡片 */
+        .feature-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .feature-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(99, 102, 241, 0.2);
+            color: #6366f1;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+
+        .feature-content h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-content ul {
+            list-style: none;
+            font-size: 0.875rem;
+            color: #94a3b8;
+            line-height: 1.8;
+        }
+
+        /* 效果总结 */
+        .summary-card {
+            max-width: 48rem;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .summary-card h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .summary-card p {
+            color: #94a3b8;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .badges {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .badge-primary {
+            background: rgba(99, 102, 241, 0.1);
+            color: #6366f1;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .badge-purple {
+            background: rgba(139, 92, 246, 0.1);
+            color: #8b5cf6;
+            border: 1px solid rgba(139, 92, 246, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="background">
+        <div class="gradient-mesh"></div>
+        <div class="grid-pattern"></div>
+    </div>
+
+    <div class="container">
+        <!-- 页面标题 -->
+        <div class="page-title">
+            <h1>UI 重构设计预览</h1>
+            <p>现代科技风 - Cyber Secure Design System</p>
+        </div>
+
+        <!-- 统计卡片 -->
+        <section class="section">
+            <h2 class="section-title">统计卡片组件</h2>
+            <div class="grid grid-4">
+                <div class="glass-card stat-card">
+                    <div class="stat-info">
+                        <div class="stat-icon icon-primary">🌐</div>
+                        <div class="stat-details">
+                            <div class="stat-label">活跃订阅</div>
+                            <div class="stat-value">3</div>
+                        </div>
+                    </div>
+                    <div class="stat-trend trend-up">
+                        ↗ +12%
+                    </div>
+                </div>
+
+                <div class="glass-card stat-card">
+                    <div class="stat-info">
+                        <div class="stat-icon icon-accent">⚡</div>
+                        <div class="stat-details">
+                            <div class="stat-label">今日流量</div>
+                            <div class="stat-value">12.5 GB</div>
+                        </div>
+                    </div>
+                    <div class="stat-trend trend-up">
+                        ↗ +8%
+                    </div>
+                </div>
+
+                <div class="glass-card stat-card">
+                    <div class="stat-info">
+                        <div class="stat-icon icon-warning">📅</div>
+                        <div class="stat-details">
+                            <div class="stat-label">剩余天数</div>
+                            <div class="stat-value">28</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card stat-card">
+                    <div class="stat-info">
+                        <div class="stat-icon icon-danger">💰</div>
+                        <div class="stat-details">
+                            <div class="stat-label">钱包余额</div>
+                            <div class="stat-value">¥128.00</div>
+                        </div>
+                    </div>
+                    <div class="stat-trend trend-down">
+                        ↘ -5%
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 玻璃态卡片 -->
+        <section class="section">
+            <h2 class="section-title">玻璃态卡片效果</h2>
+            <div class="grid grid-3">
+                <div class="glass-card feature-card">
+                    <div class="feature-icon">🌐</div>
+                    <div class="feature-content">
+                        <h3>全球节点</h3>
+                        <p style="color: #94a3b8; font-size: 0.875rem;">200+ 服务器<br>遍布全球的高速节点</p>
+                    </div>
+                </div>
+
+                <div class="glass-card feature-card">
+                    <div class="feature-icon">📊</div>
+                    <div class="feature-content">
+                        <h3>实时监控</h3>
+                        <p style="color: #94a3b8; font-size: 0.875rem;">99.9% 在线率<br>实时监控节点状态</p>
+                    </div>
+                </div>
+
+                <div class="glass-card feature-card">
+                    <div class="feature-icon">👥</div>
+                    <div class="feature-content">
+                        <h3>用户信赖</h3>
+                        <p style="color: #94a3b8; font-size: 0.875rem;">100万+ 用户<br>已有超过一百万用户选择</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 流量环形图 -->
+        <section class="section">
+            <h2 class="section-title">流量可视化组件</h2>
+            <div class="grid grid-3">
+                <div class="glass-card">
+                    <div class="traffic-ring-container">
+                        <h3 class="ring-title">正常使用</h3>
+                        <div class="traffic-ring">
+                            <svg width="200" height="200" viewBox="0 0 200 200">
+                                <defs>
+                                    <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+                                        <stop offset="50%" style="stop-color:#8b5cf6;stop-opacity:1" />
+                                        <stop offset="100%" style="stop-color:#10b981;stop-opacity:1" />
+                                    </linearGradient>
+                                </defs>
+                                <circle cx="100" cy="100" r="90" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="12"/>
+                                <circle cx="100" cy="100" r="90" fill="none" stroke="url(#gradient1)" stroke-width="12"
+                                    stroke-linecap="round" stroke-dasharray="565.48" stroke-dashoffset="226.19"/>
+                            </svg>
+                            <div class="ring-center">
+                                <div class="ring-percentage">60%</div>
+                                <div class="ring-label">已使用</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card">
+                    <div class="traffic-ring-container">
+                        <h3 class="ring-title">接近上限</h3>
+                        <div class="traffic-ring">
+                            <svg width="200" height="200" viewBox="0 0 200 200">
+                                <defs>
+                                    <linearGradient id="gradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:1" />
+                                        <stop offset="100%" style="stop-color:#ef4444;stop-opacity:1" />
+                                    </linearGradient>
+                                </defs>
+                                <circle cx="100" cy="100" r="90" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="12"/>
+                                <circle cx="100" cy="100" r="90" fill="none" stroke="url(#gradient2)" stroke-width="12"
+                                    stroke-linecap="round" stroke-dasharray="565.48" stroke-dashoffset="113.10"/>
+                            </svg>
+                            <div class="ring-center">
+                                <div class="ring-percentage" style="background: linear-gradient(135deg, #f59e0b, #ef4444); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">80%</div>
+                                <div class="ring-label">已使用</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card">
+                    <div class="traffic-ring-container">
+                        <h3 class="ring-title">已超限</h3>
+                        <div class="traffic-ring">
+                            <svg width="200" height="200" viewBox="0 0 200 200">
+                                <defs>
+                                    <linearGradient id="gradient3" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:1" />
+                                        <stop offset="100%" style="stop-color:#ef4444;stop-opacity:1" />
+                                    </linearGradient>
+                                </defs>
+                                <circle cx="100" cy="100" r="90" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="12"/>
+                                <circle cx="100" cy="100" r="90" fill="none" stroke="url(#gradient3)" stroke-width="12"
+                                    stroke-linecap="round" stroke-dasharray="565.48" stroke-dashoffset="0"/>
+                            </svg>
+                            <div class="ring-center">
+                                <div class="ring-percentage" style="background: linear-gradient(135deg, #f59e0b, #ef4444); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">100%</div>
+                                <div class="ring-label">已使用</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 订阅卡片 -->
+        <section class="section">
+            <h2 class="section-title">现代化订阅卡片</h2>
+            <div class="glass-card subscription-card">
+                <div class="card-header">
+                    <div>
+                        <h3 class="card-title">旗舰版套餐</h3>
+                        <p class="card-subtitle">订阅ID: #10086</p>
+                    </div>
+                    <div class="status-badge">
+                        <span class="status-dot"></span>
+                        活跃
+                    </div>
+                </div>
+
+                <div class="traffic-ring-container">
+                    <div class="traffic-ring">
+                        <svg width="200" height="200" viewBox="0 0 200 200">
+                            <defs>
+                                <linearGradient id="gradient-main" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+                                    <stop offset="50%" style="stop-color:#8b5cf6;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#10b981;stop-opacity:1" />
+                                </linearGradient>
+                            </defs>
+                            <circle cx="100" cy="100" r="90" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="12"/>
+                            <circle cx="100" cy="100" r="90" fill="none" stroke="url(#gradient-main)" stroke-width="12"
+                                stroke-linecap="round" stroke-dasharray="565.48" stroke-dashoffset="226.19"/>
+                        </svg>
+                        <div class="ring-center">
+                            <div class="ring-percentage">60%</div>
+                            <div class="ring-label">已使用</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="traffic-details">
+                    <div class="detail-item">
+                        <div class="detail-icon" style="color: #3b82f6;">↑</div>
+                        <div class="detail-label">上传</div>
+                        <div class="detail-value">40 GB</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-icon" style="color: #8b5cf6;">↓</div>
+                        <div class="detail-label">下载</div>
+                        <div class="detail-value">80 GB</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-icon" style="color: #10b981;">⚡</div>
+                        <div class="detail-label">总计</div>
+                        <div class="detail-value">120 GB</div>
+                    </div>
+                </div>
+
+                <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem; margin-top: 1.5rem;">
+                    <div class="time-info">
+                        <div class="time-item">
+                            <span class="time-icon">🔄</span>
+                            <div>
+                                <div class="time-label">流量重置</div>
+                                <div class="time-value">2025-11-22</div>
+                            </div>
+                        </div>
+                        <div class="time-item">
+                            <span class="time-icon">📅</span>
+                            <div>
+                                <div class="time-label">到期时间</div>
+                                <div class="time-value">2026-01-06</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tabs">
+                        <div class="tab active">通用订阅</div>
+                        <div class="tab">应用导入</div>
+                        <div class="tab">二维码</div>
+                    </div>
+
+                    <div class="button-grid">
+                        <button class="button">🔄 重置 Token</button>
+                        <button class="button">⚡ 重置流量</button>
+                        <button class="button" style="background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.2); color: #10b981;">💚 续费</button>
+                        <button class="button" style="background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.2); color: #ef4444;">❌ 取消订阅</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 设计特点 -->
+        <section class="section">
+            <h2 class="section-title">设计特点</h2>
+            <div class="grid grid-2">
+                <div class="glass-card feature-card">
+                    <div class="feature-icon">✨</div>
+                    <div class="feature-content">
+                        <h3>玻璃态设计</h3>
+                        <ul>
+                            <li>• 半透明背景 + 毛玻璃模糊</li>
+                            <li>• 微妙边框和阴影</li>
+                            <li>• 层次感强，现代科技风</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="glass-card feature-card">
+                    <div class="feature-icon">🎬</div>
+                    <div class="feature-content">
+                        <h3>动画与微交互</h3>
+                        <ul>
+                            <li>• Framer Motion 流畅动画</li>
+                            <li>• 悬浮态效果增强</li>
+                            <li>• 数字滚动动画</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="glass-card feature-card">
+                    <div class="feature-icon">📊</div>
+                    <div class="feature-content">
+                        <h3>数据可视化</h3>
+                        <ul>
+                            <li>• SVG 环形图展示流量</li>
+                            <li>• 渐变色和发光效果</li>
+                            <li>• 实时数据动画</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="glass-card feature-card">
+                    <div class="feature-icon">🎨</div>
+                    <div class="feature-content">
+                        <h3>色彩系统</h3>
+                        <ul>
+                            <li>• 蓝紫渐变主色调</li>
+                            <li>• 翠绿强调色</li>
+                            <li>• 状态色清晰区分</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 效果总结 -->
+        <section class="section">
+            <div class="glass-card summary-card">
+                <h3>✨ 这就是重构后的效果预览</h3>
+                <p>
+                    采用现代化的玻璃态设计、丰富的动画效果、清晰的数据可视化，
+                    打造极致的用户体验。
+                </p>
+                <div class="badges">
+                    <div class="badge badge-success">科技感 ↑ 80%</div>
+                    <div class="badge badge-primary">用户体验 ↑ 60%</div>
+                    <div class="badge badge-purple">转化率 ↑ 40%</div>
+                </div>
+            </div>
+        </section>
+
+        <div style="text-align: center; color: #64748b; margin-top: 4rem; padding: 2rem 0; border-top: 1px solid rgba(255,255,255,0.1);">
+            <p>PPanel UI 重构设计预览 - 现代科技风格</p>
+            <p style="font-size: 0.875rem; margin-top: 0.5rem;">Created by Claude Code 🤖</p>
+        </div>
+    </div>
+</body>
+</html>
