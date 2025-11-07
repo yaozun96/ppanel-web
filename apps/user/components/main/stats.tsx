@@ -20,22 +20,29 @@ export function Stats() {
     {
       name: t('users'),
       number: NEXT_PUBLIC_HOME_USER_COUNT,
-      icon: <DotLottieReact className='size-24' data={UsersLottie} autoplay loop />,
+      icon: <DotLottieReact className='size-20' data={UsersLottie} autoplay loop />,
+      gradient: 'from-indigo-500 to-purple-500',
+      bgGlow: 'rgba(99, 102, 241, 0.1)',
     },
     {
       name: t('servers'),
       number: NEXT_PUBLIC_HOME_SERVER_COUNT,
-      icon: <DotLottieReact className='size-24' data={ServersLottie} autoplay loop />,
+      icon: <DotLottieReact className='size-20' data={ServersLottie} autoplay loop />,
+      gradient: 'from-purple-500 to-pink-500',
+      bgGlow: 'rgba(139, 92, 246, 0.1)',
     },
     {
       name: t('locations'),
       number: NEXT_PUBLIC_HOME_LOCATION_COUNT,
-      icon: <DotLottieReact className='size-24' data={LocationsLittie} autoplay loop />,
+      icon: <DotLottieReact className='size-20' data={LocationsLittie} autoplay loop />,
+      gradient: 'from-emerald-500 to-teal-500',
+      bgGlow: 'rgba(16, 185, 129, 0.1)',
     },
   ];
+
   return (
     <motion.section
-      className='divide-muted z-10 grid w-full grid-cols-1 divide-y-2 rounded-lg sm:grid-cols-3 sm:divide-x-2 sm:divide-y-0'
+      className='z-10 grid w-full grid-cols-1 gap-6 sm:grid-cols-3'
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 1, ease: 'easeOut' }}
@@ -44,24 +51,41 @@ export function Stats() {
     >
       {list.map((item, index) => (
         <motion.div
-          className='mx-auto flex w-10/12 items-center justify-start px-4 py-4 sm:w-full sm:justify-center sm:py-6'
           key={item.name}
-          initial={{ opacity: 0, scale: 0.8 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, delay: index * 0.3, ease: 'easeOut' }}
+          initial={{ opacity: 0, scale: 0.8, y: 20 }}
+          whileInView={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: index * 0.2, ease: 'easeOut' }}
           viewport={{ once: true, amount: 0.8 }}
+          className='group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-8 backdrop-blur-xl transition-all hover:-translate-y-2 hover:border-white/20 hover:shadow-2xl'
         >
-          <div className='flex w-full items-center sm:w-auto'>
-            <div className='mr-4 flex h-20 w-20 items-center justify-center rounded-full'>
+          {/* 顶部渐变条 */}
+          <div
+            className={`absolute left-0 top-0 h-1 w-full bg-gradient-to-r ${item.gradient} opacity-0 transition-opacity group-hover:opacity-100`}
+          />
+
+          {/* 背景发光效果 */}
+          <div
+            className='absolute -right-10 -top-10 h-32 w-32 rounded-full opacity-0 blur-3xl transition-opacity group-hover:opacity-100'
+            style={{ backgroundColor: item.bgGlow }}
+          />
+
+          <div className='relative flex flex-col items-center text-center'>
+            {/* 图标容器 */}
+            <div className='mb-4 flex h-24 w-24 items-center justify-center rounded-2xl bg-white/5 ring-1 ring-white/10 transition-transform group-hover:scale-110 group-hover:ring-white/20'>
               {item.icon}
             </div>
-            <div className='flex flex-col'>
-              <p className='text-xl font-bold'>
-                <CountUp end={item.number} duration={2000 + index * 500} />+
-              </p>
-              <p className='text-muted-foreground text-lg'>{item.name}</p>
+
+            {/* 数字 */}
+            <div className={`mb-2 bg-gradient-to-r ${item.gradient} bg-clip-text text-4xl font-bold text-transparent`}>
+              <CountUp end={item.number} duration={2000 + index * 500} />+
             </div>
+
+            {/* 标签 */}
+            <p className='text-lg font-medium text-slate-300'>{item.name}</p>
           </div>
+
+          {/* 装饰性元素 */}
+          <div className='absolute -bottom-2 -left-2 h-20 w-20 rounded-full bg-gradient-to-br from-white/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100' />
         </motion.div>
       ))}
     </motion.section>
