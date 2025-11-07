@@ -4,11 +4,12 @@ import { cn } from '@workspace/ui/lib/utils';
 import { motion } from 'framer-motion';
 import React from 'react';
 
-interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
+interface GlassCardProps {
   children: React.ReactNode;
   hover?: boolean;
   glow?: boolean;
   gradient?: boolean;
+  className?: string;
 }
 
 export function GlassCard({
@@ -17,7 +18,6 @@ export function GlassCard({
   hover = true,
   glow = false,
   gradient = false,
-  ...props
 }: GlassCardProps) {
   return (
     <motion.div
@@ -33,7 +33,7 @@ export function GlassCard({
         'shadow-[0_8px_32px_rgba(0,0,0,0.37)]',
         // 渐变背景（可选）
         gradient &&
-          'before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/5 before:to-white/2 before:z-0',
+          'before:to-white/2 before:absolute before:inset-0 before:z-0 before:bg-gradient-to-br before:from-white/5',
         // 悬浮效果
         hover && [
           'transition-all duration-300 ease-out',
@@ -43,17 +43,16 @@ export function GlassCard({
         ],
         // 发光效果
         glow && 'hover:shadow-[0_0_30px_rgba(99,102,241,0.3)]',
-        className
+        className,
       )}
-      {...props}
     >
       {/* 顶部渐变条 */}
       {glow && (
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className='absolute left-0 right-0 top-0 h-[2px] bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 opacity-0 transition-opacity duration-300 group-hover:opacity-100' />
       )}
 
       {/* 内容 */}
-      <div className="relative z-10">{children}</div>
+      <div className='relative z-10'>{children}</div>
     </motion.div>
   );
 }

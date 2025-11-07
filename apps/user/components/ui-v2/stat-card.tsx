@@ -37,28 +37,28 @@ export function StatCard({
   };
 
   return (
-    <GlassCard className="p-6 group">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-4">
+    <GlassCard className='group p-6'>
+      <div className='flex items-start justify-between'>
+        <div className='flex items-center gap-4'>
           {/* 图标容器 */}
           <motion.div
-            className={`w-12 h-12 rounded-xl ${colorClasses[color]} flex items-center justify-center relative overflow-hidden`}
+            className={`h-12 w-12 rounded-xl ${colorClasses[color]} relative flex items-center justify-center overflow-hidden`}
             whileHover={{ scale: 1.05 }}
             transition={{ duration: 0.2 }}
           >
             {/* 背景光晕 */}
             <motion.div
-              className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100"
+              className='absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100'
               transition={{ duration: 0.3 }}
             />
 
-            <IconComponent className="w-6 h-6 relative z-10" />
+            <IconComponent className='relative z-10 h-6 w-6' />
           </motion.div>
 
           {/* 文字信息 */}
           <div>
-            <p className="text-sm text-slate-400 mb-1">{label}</p>
-            <AnimatedValue value={value} className="text-2xl font-bold text-white" />
+            <p className='mb-1 text-sm text-slate-400'>{label}</p>
+            <AnimatedValue value={value} className='text-2xl font-bold text-white' />
           </div>
         </div>
 
@@ -70,12 +70,8 @@ export function StatCard({
             transition={{ delay: 0.3 }}
             className={`flex items-center gap-1 text-sm font-medium ${trendColors[trendDirection]}`}
           >
-            {trendDirection === 'up' && (
-              <Icon name="TrendingUp" className="w-4 h-4" />
-            )}
-            {trendDirection === 'down' && (
-              <Icon name="TrendingDown" className="w-4 h-4" />
-            )}
+            {trendDirection === 'up' && <Icon icon='uil:arrow-up' className='h-4 w-4' />}
+            {trendDirection === 'down' && <Icon icon='uil:arrow-down' className='h-4 w-4' />}
             <span>{trend}</span>
           </motion.div>
         )}
@@ -85,14 +81,28 @@ export function StatCard({
 }
 
 // 数字动画组件
-function AnimatedValue({
-  value,
-  className,
-}: {
-  value: string | number;
-  className?: string;
-}) {
+function AnimatedValue({ value, className }: { value: string | number; className?: string }) {
   const isNumeric = typeof value === 'number';
+
+  // Always call hooks unconditionally at the top level
+  const motionValue = useMotionValue(0);
+  const springValue = useSpring(motionValue, { duration: 1500 });
+  const [displayValue, setDisplayValue] = React.useState(0);
+
+  useEffect(() => {
+    if (isNumeric) {
+      motionValue.set(value as number);
+    }
+  }, [motionValue, value, isNumeric]);
+
+  useEffect(() => {
+    if (!isNumeric) return;
+
+    const unsubscribe = springValue.on('change', (latest) => {
+      setDisplayValue(latest);
+    });
+    return () => unsubscribe();
+  }, [springValue, isNumeric]);
 
   if (!isNumeric) {
     return (
@@ -106,21 +116,6 @@ function AnimatedValue({
       </motion.div>
     );
   }
-
-  const motionValue = useMotionValue(0);
-  const springValue = useSpring(motionValue, { duration: 1500 });
-  const [displayValue, setDisplayValue] = React.useState(0);
-
-  useEffect(() => {
-    motionValue.set(value);
-  }, [motionValue, value]);
-
-  useEffect(() => {
-    const unsubscribe = springValue.on('change', (latest) => {
-      setDisplayValue(latest);
-    });
-    return () => unsubscribe();
-  }, [springValue]);
 
   return <div className={className}>{Math.round(displayValue)}</div>;
 }

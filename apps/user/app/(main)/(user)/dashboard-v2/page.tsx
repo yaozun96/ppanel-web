@@ -41,7 +41,10 @@ export default function DashboardV2() {
   // 计算统计数据
   const stats = React.useMemo(() => {
     const activeSubscriptions = userSubscribe.filter((sub) => sub.status === 1).length;
-    const totalTraffic = userSubscribe.reduce((sum, sub) => sum + (sub.used_traffic || 0), 0);
+    const totalTraffic = userSubscribe.reduce(
+      (sum, sub) => sum + (sub.download || 0) + (sub.upload || 0),
+      0,
+    );
     const totalTrafficGB = (totalTraffic / 1024 / 1024 / 1024).toFixed(1);
 
     // 计算最近到期的订阅天数
@@ -49,8 +52,8 @@ export default function DashboardV2() {
     let minDaysLeft = 0;
     if (activeSubs.length > 0) {
       const dates = activeSubs.map((sub) => {
-        if (!sub.expired_at) return Infinity;
-        const expireDate = new Date(sub.expired_at);
+        if (!sub.expire_time) return Infinity;
+        const expireDate = new Date(sub.expire_time * 1000); // expire_time is Unix timestamp in seconds
         const today = new Date();
         const diffTime = expireDate.getTime() - today.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -103,7 +106,9 @@ export default function DashboardV2() {
             <h1 className='bg-gradient-to-r from-indigo-400 via-purple-400 to-emerald-400 bg-clip-text text-3xl font-bold text-transparent'>
               {t('dashboard')}
             </h1>
-            <p className='mt-1 text-slate-400'>欢迎回来，{user?.email || '用户'}</p>
+            <p className='mt-1 text-slate-400'>
+              欢迎回来，{user?.auth_methods?.[0]?.auth_identifier || '用户'}
+            </p>
           </div>
 
           <div className='flex gap-2'>
@@ -193,20 +198,24 @@ export default function DashboardV2() {
                   key={subscription.id}
                   subscription={{
                     id: subscription.id || 0,
-                    name: subscription.subscribe_name || 'Unknown',
+                    name: subscription.subscribe?.name || 'Unknown',
                     status:
                       subscription.status === 1
                         ? 'active'
                         : subscription.status === 2
                           ? 'expiring'
                           : 'expired',
-                    used: subscription.used_traffic || 0,
-                    total: subscription.total_traffic || 0,
-                    upload: subscription.upload_traffic || 0,
-                    download: subscription.download_traffic || 0,
-                    resetDate: subscription.reset_at || new Date().toISOString(),
-                    expiryDate: subscription.expired_at || new Date().toISOString(),
-                    subscribeUrl: subscription.subscribe_url || '',
+                    used: (subscription.download || 0) + (subscription.upload || 0),
+                    total: subscription.traffic || 0,
+                    upload: subscription.upload || 0,
+                    download: subscription.download || 0,
+                    resetDate: subscription.reset_time
+                      ? new Date(subscription.reset_time * 1000).toISOString()
+                      : new Date().toISOString(),
+                    expiryDate: subscription.expire_time
+                      ? new Date(subscription.expire_time * 1000).toISOString()
+                      : new Date().toISOString(),
+                    subscribeUrl: subscription.token ? `/api/subscribe/${subscription.token}` : '',
                   }}
                 />
               ))}
@@ -237,12 +246,11 @@ export default function DashboardV2() {
               </div>
             </GlassCard>
 
-            <GlassCard
-              className='group cursor-pointer p-6 transition-all hover:border-emerald-500/30'
-              hover
-              asChild
-            >
-              <Link href='/document'>
+            <Link href='/document'>
+              <GlassCard
+                className='group cursor-pointer p-6 transition-all hover:border-emerald-500/30'
+                hover
+              >
                 <div className='flex items-center gap-4'>
                   <div className='flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 transition-transform group-hover:scale-110'>
                     <Icon icon='uil:book-open' className='h-6 w-6 text-emerald-400' />
@@ -252,15 +260,14 @@ export default function DashboardV2() {
                     <p className='text-sm text-slate-400'>快速入门指南</p>
                   </div>
                 </div>
-              </Link>
-            </GlassCard>
+              </GlassCard>
+            </Link>
 
-            <GlassCard
-              className='group cursor-pointer p-6 transition-all hover:border-purple-500/30'
-              hover
-              asChild
-            >
-              <Link href='/ticket'>
+            <Link href='/ticket'>
+              <GlassCard
+                className='group cursor-pointer p-6 transition-all hover:border-purple-500/30'
+                hover
+              >
                 <div className='flex items-center gap-4'>
                   <div className='flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/10 transition-transform group-hover:scale-110'>
                     <Icon icon='uil:comment-alt-message' className='h-6 w-6 text-purple-400' />
@@ -270,8 +277,8 @@ export default function DashboardV2() {
                     <p className='text-sm text-slate-400'>提交工单</p>
                   </div>
                 </div>
-              </Link>
-            </GlassCard>
+              </GlassCard>
+            </Link>
           </div>
         </section>
 
