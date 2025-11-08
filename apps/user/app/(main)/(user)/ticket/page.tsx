@@ -1,6 +1,5 @@
 'use client';
 
-import { Empty } from '@/components/empty';
 import { ProList, ProListActions } from '@/components/pro-list';
 import {
   createUserTicket,
@@ -11,13 +10,7 @@ import {
 } from '@/services/user/ticket';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@workspace/ui/components/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@workspace/ui/components/card';
+import { Card } from '@workspace/ui/components/card';
 import {
   Dialog,
   DialogContent,
@@ -27,32 +20,24 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@workspace/ui/components/dialog';
-import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from '@workspace/ui/components/drawer';
 import { Input } from '@workspace/ui/components/input';
 import { Label } from '@workspace/ui/components/label';
 import { ScrollArea } from '@workspace/ui/components/scroll-area';
 import { Textarea } from '@workspace/ui/components/textarea';
-import { ConfirmButton } from '@workspace/ui/custom-components/confirm-button';
 import { Icon } from '@workspace/ui/custom-components/icon';
 import { cn } from '@workspace/ui/lib/utils';
 import { formatDate } from '@workspace/ui/utils';
+import { motion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import NextImage from 'next/legacy/image';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
-export default function Page() {
+export default function TicketV4() {
   const t = useTranslations('ticket');
-
   const [ticketId, setTicketId] = useState<any>(null);
   const [message, setMessage] = useState('');
+  const [create, setCreate] = useState<Partial<API.CreateUserTicketRequest & { open: boolean }>>();
 
   const { data: ticket, refetch: refetchTicket } = useQuery({
     queryKey: ['getUserTicketDetails', ticketId],
@@ -77,298 +62,391 @@ export default function Page() {
   }, [ticket?.follow?.length]);
 
   const ref = useRef<ProListActions>(null);
-  const [create, setCreate] = useState<Partial<API.CreateUserTicketRequest & { open: boolean }>>();
+
+  const statusConfig = {
+    1: {
+      label: 'Open',
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-100 dark:bg-blue-900/30',
+      icon: 'uil:hourglass',
+    },
+    2: {
+      label: 'Replied',
+      color: 'text-green-600',
+      bgColor: 'bg-green-100 dark:bg-green-900/30',
+      icon: 'uil:comment-check',
+    },
+    3: {
+      label: 'Resolved',
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-100 dark:bg-purple-900/30',
+      icon: 'uil:check-circle',
+    },
+    4: {
+      label: 'Closed',
+      color: 'text-gray-600',
+      bgColor: 'bg-gray-100 dark:bg-gray-900/30',
+      icon: 'uil:times-circle',
+    },
+  };
 
   return (
-    <>
-      <ProList<API.Ticket, { status: number }>
-        action={ref}
-        header={{
-          title: t('ticketList'),
-          toolbar: (
-            <Dialog open={create?.open} onOpenChange={(open) => setCreate({ open })}>
-              <DialogTrigger asChild>
-                <Button size='sm'>{t('createTicket')}</Button>
-              </DialogTrigger>
-              <DialogContent className='sm:max-w-[425px]'>
-                <DialogHeader>
-                  <DialogTitle>{t('createTicket')}</DialogTitle>
-                  <DialogDescription>{t('createTicketDescription')}</DialogDescription>
-                </DialogHeader>
-                <div className='grid gap-4 py-4'>
-                  <Label htmlFor='title'>{t('title')}</Label>
+    <div className='bg-background min-h-screen py-8'>
+      <div className='mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
+        {/* Page Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className='mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'
+        >
+          <div>
+            <h1 className='text-foreground mb-2 text-3xl font-bold'>Support Tickets</h1>
+            <p className='text-muted-foreground'>Get help from our support team</p>
+          </div>
+          <Dialog open={create?.open} onOpenChange={(open) => setCreate({ open })}>
+            <DialogTrigger asChild>
+              <Button size='lg'>
+                <Icon icon='uil:plus' className='mr-2 h-5 w-5' />
+                New Ticket
+              </Button>
+            </DialogTrigger>
+            <DialogContent className='sm:max-w-[500px]'>
+              <DialogHeader>
+                <DialogTitle>Create Support Ticket</DialogTitle>
+                <DialogDescription>
+                  Describe your issue and we'll get back to you as soon as possible.
+                </DialogDescription>
+              </DialogHeader>
+              <div className='space-y-4 py-4'>
+                <div>
+                  <Label htmlFor='title'>Subject</Label>
                   <Input
                     id='title'
-                    defaultValue={create?.title}
-                    onChange={(e) => setCreate({ ...create, title: e.target.value! })}
+                    placeholder='Brief description of your issue'
+                    value={create?.title || ''}
+                    onChange={(e) => setCreate({ ...create, title: e.target.value })}
                   />
-                  <Label htmlFor='content'>{t('description')}</Label>
+                </div>
+                <div>
+                  <Label htmlFor='content'>Description</Label>
                   <Textarea
                     id='content'
-                    defaultValue={create?.description}
-                    onChange={(e) => setCreate({ ...create, description: e.target.value! })}
+                    placeholder='Please provide as much detail as possible...'
+                    value={create?.description || ''}
+                    onChange={(e) => setCreate({ ...create, description: e.target.value })}
+                    className='min-h-[150px]'
                   />
                 </div>
-                <DialogFooter>
-                  <Button
-                    disabled={!create?.title || !create?.description}
-                    onClick={async () => {
-                      await createUserTicket({
-                        title: create!.title!,
-                        description: create!.description!,
-                      });
-                      ref.current?.refresh();
-                      toast.success(t('createSuccess'));
-                      setCreate({ open: false });
-                    }}
-                  >
-                    {t('submit')}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          ),
-        }}
-        params={[
-          {
-            key: 'search',
-          },
-          {
-            key: 'status',
-            placeholder: t('status.0'),
-            options: [
-              {
-                label: t('close'),
-                value: '4',
-              },
-            ],
-          },
-        ]}
-        request={async (pagination, filters) => {
-          const { data } = await getUserTicketList({
-            ...pagination,
-            ...filters,
-          });
-          return {
-            list: data.data?.list || [],
-            total: data.data?.total || 0,
-          };
-        }}
-        renderItem={(item) => {
-          return (
-            <Card className='overflow-hidden'>
-              <CardHeader className='bg-muted/50 flex flex-row items-center justify-between gap-2 space-y-0 p-3'>
-                <CardTitle>
-                  <span
-                    className={cn(
-                      'flex items-center gap-2 before:block before:size-1.5 before:animate-pulse before:rounded-full before:ring-2 before:ring-opacity-50',
-                      {
-                        'before:bg-yellow-500 before:ring-yellow-500': item.status === 1,
-                        'before:bg-rose-500 before:ring-rose-500': item.status === 2,
-                        'before:bg-green-500 before:ring-green-500': item.status === 3,
-                        'before:bg-zinc-500 before:ring-zinc-500': item.status === 4,
-                      },
-                    )}
-                  >
-                    {t(`status.${item.status}`)}
-                  </span>
-                </CardTitle>
-                <CardDescription className='flex gap-2'>
-                  {item.status !== 4 ? (
-                    <>
-                      <Button key='reply' size='sm' onClick={() => setTicketId(item.id)}>
-                        {t('reply')}
-                      </Button>
-                      <ConfirmButton
-                        key='close'
-                        trigger={
-                          <Button variant='destructive' size='sm'>
-                            {t('close')}
-                          </Button>
-                        }
-                        title={t('confirmClose')}
-                        description={t('closeWarning')}
-                        onConfirm={async () => {
-                          await updateUserTicketStatus({ id: item.id, status: 4 });
-                          toast.success(t('closeSuccess'));
-                          ref.current?.refresh();
-                        }}
-                        cancelText={t('cancel')}
-                        confirmText={t('confirm')}
-                      />
-                    </>
-                  ) : (
-                    <Button key='check' size='sm' onClick={() => setTicketId(item.id)}>
-                      {t('check')}
-                    </Button>
-                  )}
-                </CardDescription>
-              </CardHeader>
-
-              <CardContent className='p-3 text-sm'>
-                <ul className='grid gap-3 *:flex *:flex-col lg:grid-cols-3'>
-                  <li>
-                    <span className='text-muted-foreground'>{t('title')}</span>
-                    <span> {item.title}</span>
-                  </li>
-                  <li className='font-semibold'>
-                    <span className='text-muted-foreground'>{t('description')}</span>
-                    <time>{item.description}</time>
-                  </li>
-                  <li className='font-semibold'>
-                    <span className='text-muted-foreground'>{t('updatedAt')}</span>
-                    <time>{formatDate(item.updated_at)}</time>
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
-          );
-        }}
-        empty={<Empty />}
-      />
-      <Drawer
-        open={!!ticketId}
-        onOpenChange={(open) => {
-          if (!open) setTicketId(null);
-        }}
-      >
-        <DrawerContent className='container mx-auto h-screen'>
-          <DrawerHeader className='border-b text-left'>
-            <DrawerTitle>{ticket?.title}</DrawerTitle>
-            <DrawerDescription className='line-clamp-3'>{ticket?.description}</DrawerDescription>
-          </DrawerHeader>
-          <ScrollArea className='h-full overflow-hidden' ref={scrollRef}>
-            <div className='flex flex-col gap-4 p-4'>
-              {ticket?.follow?.map((item) => (
-                <div
-                  key={item.id}
-                  className={cn('flex items-center gap-4', {
-                    'flex-row-reverse': item.from !== 'System',
-                  })}
-                >
-                  <div
-                    className={cn('flex flex-col gap-1', {
-                      'items-end': item.from !== 'System',
-                    })}
-                  >
-                    <p className='text-muted-foreground text-sm'>{formatDate(item.created_at)}</p>
-                    <p
-                      className={cn('bg-accent w-fit rounded-lg p-2 font-medium', {
-                        'bg-primary text-primary-foreground': item.from !== 'System',
-                      })}
-                    >
-                      {item.type === 1 && item.content}
-                      {item.type === 2 && (
-                        <NextImage
-                          src={item.content!}
-                          width={300}
-                          height={300}
-                          className='!size-auto object-cover'
-                          alt='image'
-                        />
-                      )}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-          {ticket?.status !== 4 && (
-            <DrawerFooter>
-              <form
-                className='flex w-full flex-row items-center gap-2'
-                onSubmit={async (event) => {
-                  event.preventDefault();
-                  if (message) {
-                    await createUserTicketFollow({
-                      ticket_id: ticketId,
-                      from: 'User',
-                      type: 1,
-                      content: message,
+              </div>
+              <DialogFooter>
+                <Button variant='outline' onClick={() => setCreate({ open: false })}>
+                  Cancel
+                </Button>
+                <Button
+                  disabled={!create?.title || !create?.description}
+                  onClick={async () => {
+                    await createUserTicket({
+                      title: create!.title!,
+                      description: create!.description!,
                     });
-                    refetchTicket();
-                    setMessage('');
-                  }
-                }}
-              >
-                <Button type='button' variant='outline' className='p-0'>
-                  <Label htmlFor='picture' className='p-2'>
-                    <Icon icon='uil:image-upload' className='text-2xl' />
-                  </Label>
-                  <Input
-                    id='picture'
-                    type='file'
-                    className='hidden'
-                    accept='image/*'
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (file && file.type.startsWith('image/')) {
-                        const reader = new FileReader();
-                        reader.readAsDataURL(file);
-                        reader.onload = (e) => {
-                          const img = new Image();
-                          img.src = e.target?.result as string;
-                          img.onload = () => {
-                            const canvas = document.createElement('canvas');
-                            const ctx = canvas.getContext('2d');
+                    ref.current?.refresh();
+                    toast.success('Ticket created successfully');
+                    setCreate({ open: false });
+                  }}
+                >
+                  Submit Ticket
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </motion.div>
 
-                            const maxWidth = 300;
-                            const maxHeight = 300;
-                            let width = img.width;
-                            let height = img.height;
+        {/* Tickets List */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <ProList<API.Ticket, { status: number }>
+            action={ref}
+            params={[
+              {
+                key: 'search',
+              },
+              {
+                key: 'status',
+                placeholder: 'Filter by status',
+                options: [{ label: 'Closed', value: '4' }],
+              },
+            ]}
+            request={async (pagination, filters) => {
+              const { data } = await getUserTicketList({
+                ...pagination,
+                ...filters,
+              });
+              return {
+                list: data.data?.list || [],
+                total: data.data?.total || 0,
+              };
+            }}
+            renderItem={(item) => {
+              const status = statusConfig[item.status as keyof typeof statusConfig];
 
-                            if (width > height) {
-                              if (width > maxWidth) {
-                                height = Math.round((maxWidth / width) * height);
-                                width = maxWidth;
-                              }
-                            } else {
-                              if (height > maxHeight) {
-                                width = Math.round((maxHeight / height) * width);
-                                height = maxHeight;
-                              }
-                            }
+              return (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className='mb-4'
+                >
+                  <Card className='overflow-hidden transition-shadow hover:shadow-md'>
+                    <div className='bg-muted/30 flex items-center justify-between px-6 py-4'>
+                      <div className='flex items-center gap-3'>
+                        <div
+                          className={cn(
+                            'flex h-10 w-10 items-center justify-center rounded-full',
+                            status.bgColor,
+                          )}
+                        >
+                          <Icon icon={status.icon} className={cn('h-5 w-5', status.color)} />
+                        </div>
+                        <div>
+                          <h3 className='text-foreground font-semibold'>{item.title}</h3>
+                          <p className='text-muted-foreground text-sm'>
+                            Updated {formatDate(item.updated_at)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className='flex items-center gap-3'>
+                        <span
+                          className={cn(
+                            'rounded-full px-3 py-1 text-xs font-medium',
+                            status.bgColor,
+                            status.color,
+                          )}
+                        >
+                          {status.label}
+                        </span>
+                        {item.status !== 4 ? (
+                          <div className='flex gap-2'>
+                            <Button size='sm' onClick={() => setTicketId(item.id)}>
+                              <Icon icon='uil:comment-alt-lines' className='mr-1.5 h-4 w-4' />
+                              Reply
+                            </Button>
+                            <Button
+                              size='sm'
+                              variant='outline'
+                              onClick={async () => {
+                                await updateUserTicketStatus({ id: item.id, status: 4 });
+                                toast.success('Ticket closed');
+                                ref.current?.refresh();
+                              }}
+                            >
+                              Close
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button size='sm' variant='outline' onClick={() => setTicketId(item.id)}>
+                            <Icon icon='uil:eye' className='mr-1.5 h-4 w-4' />
+                            View
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    <div className='px-6 py-4'>
+                      <p className='text-muted-foreground line-clamp-2 text-sm'>
+                        {item.description}
+                      </p>
+                    </div>
+                  </Card>
+                </motion.div>
+              );
+            }}
+            empty={
+              <div className='py-12 text-center'>
+                <Icon icon='uil:ticket' className='text-muted-foreground mx-auto mb-4 h-16 w-16' />
+                <p className='text-muted-foreground mb-2 text-lg font-medium'>No tickets yet</p>
+                <p className='text-muted-foreground mb-4 text-sm'>
+                  Create a ticket if you need help from our support team
+                </p>
+                <Button onClick={() => setCreate({ open: true })}>
+                  <Icon icon='uil:plus' className='mr-2 h-4 w-4' />
+                  Create Your First Ticket
+                </Button>
+              </div>
+            }
+          />
+        </motion.div>
+      </div>
 
-                            canvas.width = width;
-                            canvas.height = height;
-                            ctx?.drawImage(img, 0, 0, width, height);
+      {/* Chat Interface Dialog */}
+      {ticketId && (
+        <Dialog open={!!ticketId} onOpenChange={(open) => !open && setTicketId(null)}>
+          <DialogContent className='h-[80vh] max-w-3xl p-0'>
+            <div className='flex h-full flex-col'>
+              {/* Chat Header */}
+              <div className='border-b px-6 py-4'>
+                <DialogTitle className='flex items-center gap-3'>
+                  <Icon icon='uil:ticket' className='text-primary h-6 w-6' />
+                  {ticket?.title}
+                </DialogTitle>
+                <DialogDescription className='mt-1'>{ticket?.description}</DialogDescription>
+              </div>
 
-                            canvas.toBlob(
-                              (blob) => {
-                                const reader = new FileReader();
-                                reader.readAsDataURL(blob!);
-                                reader.onloadend = async () => {
-                                  await createUserTicketFollow({
-                                    ticket_id: ticketId,
-                                    from: 'User',
-                                    type: 2,
-                                    content: reader.result as string,
-                                  });
-                                  refetchTicket();
-                                };
-                              },
-                              'image/webp',
-                              0.8,
-                            );
-                          };
-                        };
+              {/* Messages */}
+              <ScrollArea className='flex-1 p-6' ref={scrollRef}>
+                <div className='space-y-4'>
+                  {ticket?.follow?.map((item) => (
+                    <motion.div
+                      key={item.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={cn('flex gap-3', item.from !== 'System' && 'flex-row-reverse')}
+                    >
+                      <div
+                        className={cn(
+                          'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full',
+                          item.from === 'System'
+                            ? 'bg-primary/10 text-primary'
+                            : 'bg-accent text-accent-foreground',
+                        )}
+                      >
+                        <Icon
+                          icon={item.from === 'System' ? 'uil:user-circle' : 'uil:user'}
+                          className='h-5 w-5'
+                        />
+                      </div>
+                      <div className={cn('max-w-[70%]', item.from !== 'System' && 'items-end')}>
+                        <p className='text-muted-foreground mb-1 text-xs'>
+                          {formatDate(item.created_at)}
+                        </p>
+                        <div
+                          className={cn(
+                            'rounded-2xl px-4 py-2.5',
+                            item.from === 'System'
+                              ? 'bg-muted'
+                              : 'bg-primary text-primary-foreground',
+                          )}
+                        >
+                          {item.type === 1 && <p className='text-sm'>{item.content}</p>}
+                          {item.type === 2 && (
+                            <NextImage
+                              src={item.content!}
+                              width={300}
+                              height={300}
+                              className='!size-auto rounded-lg'
+                              alt='attachment'
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </ScrollArea>
+
+              {/* Message Input */}
+              {ticket?.status !== 4 && (
+                <div className='border-t p-4'>
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (message) {
+                        await createUserTicketFollow({
+                          ticket_id: ticketId,
+                          from: 'User',
+                          type: 1,
+                          content: message,
+                        });
+                        refetchTicket();
+                        setMessage('');
                       }
                     }}
-                  />
-                </Button>
-                <Input
-                  placeholder={t('inputPlaceholder')}
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                />
-                <Button type='submit' disabled={!message}>
-                  <Icon icon='uil:navigator' />
-                </Button>
-              </form>
-            </DrawerFooter>
-          )}
-        </DrawerContent>
-      </Drawer>
-    </>
+                    className='flex gap-3'
+                  >
+                    <Button type='button' variant='outline' size='icon'>
+                      <Label
+                        htmlFor='picture'
+                        className='flex h-full w-full cursor-pointer items-center justify-center'
+                      >
+                        <Icon icon='uil:image-upload' className='h-5 w-5' />
+                      </Label>
+                      <Input
+                        id='picture'
+                        type='file'
+                        className='hidden'
+                        accept='image/*'
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file && file.type.startsWith('image/')) {
+                            const reader = new FileReader();
+                            reader.readAsDataURL(file);
+                            reader.onload = (e) => {
+                              const img = new Image();
+                              img.src = e.target?.result as string;
+                              img.onload = () => {
+                                const canvas = document.createElement('canvas');
+                                const ctx = canvas.getContext('2d');
+                                const maxWidth = 300;
+                                const maxHeight = 300;
+                                let width = img.width;
+                                let height = img.height;
+
+                                if (width > height) {
+                                  if (width > maxWidth) {
+                                    height = Math.round((maxWidth / width) * height);
+                                    width = maxWidth;
+                                  }
+                                } else {
+                                  if (height > maxHeight) {
+                                    width = Math.round((maxHeight / height) * width);
+                                    height = maxHeight;
+                                  }
+                                }
+
+                                canvas.width = width;
+                                canvas.height = height;
+                                ctx?.drawImage(img, 0, 0, width, height);
+
+                                canvas.toBlob(
+                                  (blob) => {
+                                    const reader = new FileReader();
+                                    reader.readAsDataURL(blob!);
+                                    reader.onloadend = async () => {
+                                      await createUserTicketFollow({
+                                        ticket_id: ticketId,
+                                        from: 'User',
+                                        type: 2,
+                                        content: reader.result as string,
+                                      });
+                                      refetchTicket();
+                                    };
+                                  },
+                                  'image/webp',
+                                  0.8,
+                                );
+                              };
+                            };
+                          }
+                        }}
+                      />
+                    </Button>
+                    <Input
+                      placeholder='Type your message...'
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      className='flex-1'
+                    />
+                    <Button type='submit' size='icon' disabled={!message}>
+                      <Icon icon='uil:message' className='h-5 w-5' />
+                    </Button>
+                  </form>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
   );
 }
